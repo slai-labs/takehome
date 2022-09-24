@@ -18,7 +18,7 @@ The goal of this exercise to implement a very simple file synchronization protoc
 
 ### goals
 
-- Design a SYNC requet that can send a file over the websocket
+- Design a SYNC request that can send a file over the websocket
 
 - Implement a basic asynchronous 'file watcher' that takes in an input directory, and detects when any files change. When they do, the client should the entire changed file over the websocket using the SYNC command
 
