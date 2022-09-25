@@ -24,7 +24,17 @@ func decodeAndSave(fileData string, filePath string) error {
 	return nil
 }
 
-func HandleSync(msg []byte, client *Client, outputFolder string) error {
+func processSyncRequest(fileChan <-chan common.SyncRequest) {
+	for request := range fileChan {
+		err := decodeAndSave(request.EncodedFile, request.FileName)
+
+		if err != nil {
+			log.Println("Can't process request.s")
+		}
+	}
+}
+
+func HandleSync(msg []byte, client *Client, outputFolder string, fileChan chan common.SyncRequest) error {
 	log.Println("Recieved SYNC request.")
 
 	var request common.SyncRequest
@@ -34,12 +44,8 @@ func HandleSync(msg []byte, client *Client, outputFolder string) error {
 		log.Fatal("Invalid SYNC request.")
 	}
 
-	err = decodeAndSave(request.EncodedFile, filepath.Join(outputFolder, request.FileName))
-
-	if err != nil {
-		log.Printf("Couldn't write %d", request.EncodedFile)
-		log.Println(err)
-	}
+	request.FileName = filepath.Join(outputFolder, request.FileName)
+	fileChan <- request
 
 	response := common.SyncResponse{
 		BaseResponse: common.BaseResponse{
