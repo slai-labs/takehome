@@ -2,11 +2,10 @@ package main
 
 import (
 	"flag"
+	"github.com/fsnotify/fsnotify"
 	"log"
-	"syscall"
-	"time"
-
 	client "slai.io/takehome/pkg/client"
+	"syscall"
 )
 
 func main() {
@@ -25,20 +24,41 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	someMessage := "hello there"
-	for {
-
-		log.Printf("Sending: '%s'", someMessage)
-
-		value, err := c.Echo(someMessage)
-		if err != nil {
-			log.Fatal("Unable to send request.")
-		}
-
-		log.Printf("Received: '%s'", value)
-
-		time.Sleep(time.Second)
+	// Add in watcher
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Fatal(err)
 	}
+	defer watcher.Close()
+
+	go func() {
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+				log.Println("event:", event)
+				log.Printf("Sending: '%s'", event.Name)
+				value, err := c.Echo(event.Name)
+				log.Printf("Received: '%s'", value)
+				if err != nil {
+					log.Fatal("Unable to send request.")
+				}
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					return
+				}
+				log.Println("error:", err)
+			}
+		}
+	}()
+
+	err = watcher.Add(*folder)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	<-make(chan struct{})
 
 }
