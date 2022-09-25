@@ -40,8 +40,8 @@ func main() {
 				}
 				log.Println("event:", event)
 				log.Printf("Sending: '%s'", event.Name)
-				value, err := c.Echo(event.Name)
-				log.Printf("Received: '%s'", value)
+				value, err := c.Sync(event.Name)
+				log.Printf("Received: '%t'", value)
 				if err != nil {
 					log.Fatal("Unable to send request.")
 				}

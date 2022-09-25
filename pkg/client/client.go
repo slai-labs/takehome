@@ -114,6 +114,41 @@ func (c *Client) tx(msg []byte) error {
 }
 
 // Request implementations
+
+func (r *Client) Sync(fileName string) (bool, error) {
+	requestId := uuid.NewString()
+
+	var request *common.SyncRequest = &common.SyncRequest{
+		BaseRequest: common.BaseRequest{
+			RequestId:   requestId,
+			RequestType: string(common.Sync),
+		},
+		EncodedFile: fileName,
+	}
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return false, err
+	}
+
+	r.channels[requestId] = make(chan []byte)
+
+	err = r.tx(payload)
+	if err != nil {
+		return false, err
+	}
+
+	var response common.SyncResponse = common.SyncResponse{}
+
+	msg := <-r.channels[requestId]
+	err = json.Unmarshal(msg, &response)
+	if err != nil {
+		log.Println("Unable to handle echo response: ", err)
+		return false, err
+	}
+
+	return response.Success, err
+}
+
 func (r *Client) Echo(value string) (string, error) {
 	requestId := uuid.NewString()
 
