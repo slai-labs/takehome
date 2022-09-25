@@ -1,14 +1,25 @@
 package main
 
 import (
+	"flag"
 	"log"
+	"syscall"
 	"time"
 
 	client "slai.io/takehome/pkg/client"
 )
 
 func main() {
-	log.Println("Starting client...")
+	folder := flag.String("folder", "", "Folder to parse.")
+	flag.Parse()
+
+	if *folder == "" {
+		log.Println("-folder required.")
+		log.Println(*folder)
+		syscall.Exit(1)
+	}
+
+	log.Printf("Starting client. Monitoring folder: %q", *folder)
 
 	c, err := client.NewClient("./")
 	if err != nil {
