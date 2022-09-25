@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"syscall"
 
 	"github.com/gorilla/websocket"
 	"slai.io/takehome/pkg/common"
@@ -21,7 +22,7 @@ const addr = "localhost:5555"
 var upgrader = websocket.Upgrader{}
 var wg sync.WaitGroup
 
-func handleMessage(w http.ResponseWriter, r *http.Request) {
+func handleMessage(w http.ResponseWriter, r *http.Request, outputFolder string) {
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -58,15 +59,31 @@ func handleMessage(w http.ResponseWriter, r *http.Request) {
 		case string(common.Echo):
 			go HandleEcho(msg, &client)
 		case string(common.Sync):
-			go HandleSync(msg, &client)
+			go HandleSync(msg, &client, outputFolder)
 
 		}
 	}
 }
 
+func handlerWrapper(outputFolder string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		handleMessage(w, r, outputFolder)
+	}
+}
+
 func StartServer() {
+
+	folder := flag.String("folder", "", "Folder to parse.")
 	flag.Parse()
-	http.HandleFunc("/", handleMessage)
+
+	if *folder == "" {
+		log.Println("-folder required.")
+		log.Println(*folder)
+		syscall.Exit(1)
+	}
+	flag.Parse()
+
+	http.HandleFunc("/", handlerWrapper(*folder))
 	log.Println("Starting server @", addr)
 	log.Fatal((http.ListenAndServe(addr, nil)))
 }

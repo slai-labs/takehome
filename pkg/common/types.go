@@ -30,9 +30,11 @@ type EchoResponse struct {
 type SyncRequest struct {
 	BaseRequest
 	EncodedFile string
+	FileName    string
 }
 
 type SyncResponse struct {
 	BaseResponse
-	Success bool
+	Success  bool
+	FileName string
 }

@@ -1,8 +1,13 @@
 package client
 
 import (
+	"bufio"
+	"encoding/base64"
 	"encoding/json"
+	"io"
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -113,6 +118,16 @@ func (c *Client) tx(msg []byte) error {
 	return nil
 }
 
+func openAndEncodeFile(filePath string) string {
+	f, _ := os.Open(filePath)
+
+	reader := bufio.NewReader(f)
+	content, _ := io.ReadAll(reader)
+
+	encoded := base64.StdEncoding.EncodeToString(content)
+	return encoded
+}
+
 // Request implementations
 
 func (r *Client) Sync(fileName string) (bool, error) {
@@ -123,7 +138,8 @@ func (r *Client) Sync(fileName string) (bool, error) {
 			RequestId:   requestId,
 			RequestType: string(common.Sync),
 		},
-		EncodedFile: fileName,
+		EncodedFile: openAndEncodeFile(fileName),
+		FileName:    filepath.Base(fileName),
 	}
 	payload, err := json.Marshal(request)
 	if err != nil {
