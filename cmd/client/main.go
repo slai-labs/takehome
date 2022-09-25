@@ -47,7 +47,7 @@ func main() {
 					return
 				}
 				log.Println("event:", event)
-				if *ignoreDotFiles && strings.HasPrefix(event.Name, ".") {
+				if *ignoreDotFiles && strings.HasPrefix(filepath.Base(event.Name), ".") {
 					log.Printf("Ignoring: %s", event.Name)
 					continue
 				}
