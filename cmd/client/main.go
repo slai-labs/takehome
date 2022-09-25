@@ -3,13 +3,18 @@ package main
 import (
 	"flag"
 	"github.com/fsnotify/fsnotify"
+	"io/fs"
 	"log"
+	"path/filepath"
 	client "slai.io/takehome/pkg/client"
+	"strings"
 	"syscall"
 )
 
 func main() {
 	folder := flag.String("folder", "", "Folder to parse.")
+	ignoreDotFiles := flag.Bool("ignore-dot-files", false, "If true ignore dotfiles")
+	recursive := flag.Bool("recursive", false, "If passed recursively add subfolders.")
 	flag.Parse()
 
 	if *folder == "" {
@@ -42,8 +47,15 @@ func main() {
 					return
 				}
 				log.Println("event:", event)
-				log.Printf("Sending: '%s'", event.Name)
-				uploadChan <- event.Name
+				if *ignoreDotFiles && strings.HasPrefix(event.Name, ".") {
+					log.Printf("Ignoring: %s", event.Name)
+					continue
+				}
+				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
+					log.Printf("Sending: '%s'", event.Name)
+					uploadChan <- event.Name
+				}
+
 			case err, ok := <-watcher.Errors:
 				if !ok {
 					return
@@ -54,10 +66,26 @@ func main() {
 	}()
 
 	err = watcher.Add(*folder)
+
+	if *recursive {
+		filepath.WalkDir(*folder, recursiveAdd(watcher))
+	}
+
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	<-make(chan struct{})
 
+}
+
+func recursiveAdd(w *fsnotify.Watcher) fs.WalkDirFunc {
+	return func(path string, di fs.DirEntry, err error) error {
+		err = w.Add(path)
+
+		if err != nil {
+			log.Println("Can't add: ", path)
+		}
+		return err
+	}
 }
