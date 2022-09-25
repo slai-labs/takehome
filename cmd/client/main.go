@@ -31,6 +31,9 @@ func main() {
 	}
 	defer watcher.Close()
 
+	uploadChan := make(chan string, 100)
+	go c.Sync(uploadChan)
+
 	go func() {
 		for {
 			select {
@@ -40,11 +43,7 @@ func main() {
 				}
 				log.Println("event:", event)
 				log.Printf("Sending: '%s'", event.Name)
-				value, err := c.Sync(event.Name)
-				log.Printf("Received: '%t'", value)
-				if err != nil {
-					log.Fatal("Unable to send request.")
-				}
+				uploadChan <- event.Name
 			case err, ok := <-watcher.Errors:
 				if !ok {
 					return

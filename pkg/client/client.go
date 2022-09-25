@@ -130,39 +130,41 @@ func openAndEncodeFile(filePath string) string {
 
 // Request implementations
 
-func (r *Client) Sync(fileName string) (bool, error) {
-	requestId := uuid.NewString()
+func (r *Client) Sync(uploads <-chan string) {
+	for upload := range uploads {
+		requestId := uuid.NewString()
 
-	var request *common.SyncRequest = &common.SyncRequest{
-		BaseRequest: common.BaseRequest{
-			RequestId:   requestId,
-			RequestType: string(common.Sync),
-		},
-		EncodedFile: openAndEncodeFile(fileName),
-		FileName:    filepath.Base(fileName),
+		var request *common.SyncRequest = &common.SyncRequest{
+			BaseRequest: common.BaseRequest{
+				RequestId:   requestId,
+				RequestType: string(common.Sync),
+			},
+			EncodedFile: openAndEncodeFile(upload),
+			FileName:    filepath.Base(upload),
+		}
+		payload, err := json.Marshal(request)
+		if err != nil {
+		}
+
+		r.channels[requestId] = make(chan []byte)
+
+		err = r.tx(payload)
+		if err != nil {
+		}
+
+		var response common.SyncResponse = common.SyncResponse{}
+
+		msg := <-r.channels[requestId]
+		err = json.Unmarshal(msg, &response)
+		if err != nil {
+			log.Println("Unable to handle echo response: ", err)
+		}
+
+		log.Printf("Received: '%t'", response.Success)
+		if err != nil {
+			log.Fatal("Unable to send request.")
+		}
 	}
-	payload, err := json.Marshal(request)
-	if err != nil {
-		return false, err
-	}
-
-	r.channels[requestId] = make(chan []byte)
-
-	err = r.tx(payload)
-	if err != nil {
-		return false, err
-	}
-
-	var response common.SyncResponse = common.SyncResponse{}
-
-	msg := <-r.channels[requestId]
-	err = json.Unmarshal(msg, &response)
-	if err != nil {
-		log.Println("Unable to handle echo response: ", err)
-		return false, err
-	}
-
-	return response.Success, err
 }
 
 func (r *Client) Echo(value string) (string, error) {
