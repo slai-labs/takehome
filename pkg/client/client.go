@@ -30,7 +30,7 @@ type Client struct {
 }
 
 func NewClient(directory string) (*Client, error) {
-	var client *Client = &Client{
+	var client = &Client{
 		Directory: directory,
 		hostURL:   hostURL,
 	}
@@ -130,11 +130,11 @@ func openAndEncodeFile(filePath string) string {
 
 // Request implementations
 
-func (r *Client) Sync(uploads <-chan string) {
+func (c *Client) Sync(uploads <-chan string) {
 	for upload := range uploads {
 		requestId := uuid.NewString()
 
-		var request *common.SyncRequest = &common.SyncRequest{
+		var request = &common.SyncRequest{
 			BaseRequest: common.BaseRequest{
 				RequestId:   requestId,
 				RequestType: string(common.Sync),
@@ -146,15 +146,15 @@ func (r *Client) Sync(uploads <-chan string) {
 		if err != nil {
 		}
 
-		r.channels[requestId] = make(chan []byte)
+		c.channels[requestId] = make(chan []byte)
 
-		err = r.tx(payload)
+		err = c.tx(payload)
 		if err != nil {
 		}
 
-		var response common.SyncResponse = common.SyncResponse{}
+		var response = common.SyncResponse{}
 
-		msg := <-r.channels[requestId]
+		msg := <-c.channels[requestId]
 		err = json.Unmarshal(msg, &response)
 		if err != nil {
 			log.Println("Unable to handle echo response: ", err)
@@ -167,10 +167,10 @@ func (r *Client) Sync(uploads <-chan string) {
 	}
 }
 
-func (r *Client) Echo(value string) (string, error) {
+func (c *Client) Echo(value string) (string, error) {
 	requestId := uuid.NewString()
 
-	var request *common.EchoRequest = &common.EchoRequest{
+	var request = &common.EchoRequest{
 		BaseRequest: common.BaseRequest{
 			RequestId:   requestId,
 			RequestType: string(common.Echo),
@@ -183,16 +183,16 @@ func (r *Client) Echo(value string) (string, error) {
 		return "", err
 	}
 
-	r.channels[requestId] = make(chan []byte)
+	c.channels[requestId] = make(chan []byte)
 
-	err = r.tx(payload)
+	err = c.tx(payload)
 	if err != nil {
 		return "", err
 	}
 
-	var response common.EchoResponse = common.EchoResponse{}
+	var response = common.EchoResponse{}
 
-	msg := <-r.channels[requestId]
+	msg := <-c.channels[requestId]
 	err = json.Unmarshal(msg, &response)
 	if err != nil {
 		log.Println("Unable to handle echo response: ", err)
