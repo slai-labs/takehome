@@ -32,30 +32,34 @@ func decodeAndSave(fileData string, filePath string) error {
 func processSyncRequest(fileChan <-chan FileDecodeMsg) {
 	for msg := range fileChan {
 		err := decodeAndSave(msg.request.EncodedFile, msg.request.FileName)
+		errMsg := ""
+		success := true
 
 		if err != nil {
 			log.Println("Can't process request.")
+			errMsg = err.Error()
+			success = false
 		}
 
-		response := SyncRespWithClient{
-			common.SyncResponse{
-				BaseResponse: common.BaseResponse{
-					RequestId:   msg.request.RequestId,
-					RequestType: msg.request.RequestType,
-				},
-				Success: true,
+		response := &common.SyncResponse{
+			BaseResponse: common.BaseResponse{
+				RequestId:   msg.request.RequestId,
+				RequestType: msg.request.RequestType,
 			},
-			msg.client,
+			Success:  success,
+			ErrorMsg: errMsg,
 		}
-		responsePayload, err := json.Marshal(response.SyncResponse)
+
+		responsePayload, err := json.Marshal(response)
 		if err != nil {
-			log.Println("Can't marshall")
+			log.Printf("WARN: Can't marshall %s", msg.request.RequestId)
 
 		}
-		client := *response.client
+
+		client := *msg.client
 		err = client.ws.WriteMessage(websocket.TextMessage, responsePayload)
 		if err != nil {
-			log.Println("Can't send")
+			log.Fatal("Can't send message. Shutting dowin. IRL this would probably be more graceful.")
 		}
 
 	}
@@ -70,9 +74,8 @@ func HandleSync(msg []byte, client *Client,
 
 	var request common.SyncRequest
 	err := json.Unmarshal(msg, &request)
-
 	if err != nil {
-		log.Fatal("Invalid SYNC request.")
+		log.Println("Malformed sync request. If I had more type I'd send an error message back to the client.")
 	}
 
 	request.FileName = filepath.Join(outputFolder, request.FileName)
