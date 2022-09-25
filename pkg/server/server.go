@@ -17,12 +17,21 @@ type Client struct {
 	ws   *websocket.Conn
 }
 
+type SyncRespWithClient struct {
+	common.SyncResponse
+	client *Client
+}
+
 const addr = "localhost:5555"
 
 var upgrader = websocket.Upgrader{}
 var wg sync.WaitGroup
 
-func handleMessage(w http.ResponseWriter, r *http.Request, outputFolder string, fileChan chan common.SyncRequest) {
+func handleMessage(w http.ResponseWriter, r *http.Request,
+	outputFolder string,
+	fileChan chan FileDecodeMsg,
+	responseChan chan SyncRespWithClient) {
+
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -59,15 +68,16 @@ func handleMessage(w http.ResponseWriter, r *http.Request, outputFolder string, 
 		case string(common.Echo):
 			go HandleEcho(msg, &client)
 		case string(common.Sync):
-			go HandleSync(msg, &client, outputFolder, fileChan)
+			go HandleSync(msg, &client, outputFolder, fileChan, responseChan)
 
 		}
 	}
 }
 
-func handlerWrapper(outputFolder string, fileChan chan common.SyncRequest) http.HandlerFunc {
+func handlerWrapper(outputFolder string, fileChan chan FileDecodeMsg,
+	responseChan chan SyncRespWithClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		handleMessage(w, r, outputFolder, fileChan)
+		handleMessage(w, r, outputFolder, fileChan, responseChan)
 	}
 }
 
@@ -83,9 +93,11 @@ func StartServer() {
 	}
 	flag.Parse()
 
-	fileChan := make(chan common.SyncRequest, 100)
+	fileChan := make(chan FileDecodeMsg, 100)
+	responseChan := make(chan SyncRespWithClient, 100)
 	go processSyncRequest(fileChan)
-	http.HandleFunc("/", handlerWrapper(*folder, fileChan))
+	go returnSyncStatus(responseChan)
+	http.HandleFunc("/", handlerWrapper(*folder, fileChan, responseChan))
 	log.Println("Starting server @", addr)
 	log.Fatal((http.ListenAndServe(addr, nil)))
 }

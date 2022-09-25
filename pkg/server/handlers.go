@@ -3,11 +3,10 @@ package server
 import (
 	"encoding/base64"
 	"encoding/json"
+	"github.com/gorilla/websocket"
 	"log"
 	"os"
 	"path/filepath"
-
-	"github.com/gorilla/websocket"
 	"slai.io/takehome/pkg/common"
 )
 
@@ -24,18 +23,62 @@ func decodeAndSave(fileData string, filePath string) error {
 	return nil
 }
 
-func processSyncRequest(fileChan <-chan common.SyncRequest) {
-	for request := range fileChan {
-		err := decodeAndSave(request.EncodedFile, request.FileName)
-
-		if err != nil {
-			log.Println("Can't process request.s")
-		}
-	}
+type FileDecodeMsg struct {
+	request      common.SyncRequest
+	responseChan chan SyncRespWithClient
+	client       *Client
 }
 
-func HandleSync(msg []byte, client *Client, outputFolder string, fileChan chan common.SyncRequest) error {
-	log.Println("Recieved SYNC request.")
+func processSyncRequest(fileChan <-chan FileDecodeMsg) {
+	for msg := range fileChan {
+		err := decodeAndSave(msg.request.EncodedFile, msg.request.FileName)
+
+		if err != nil {
+			log.Println("Can't process request.")
+		}
+
+		response := SyncRespWithClient{
+			common.SyncResponse{
+				BaseResponse: common.BaseResponse{
+					RequestId:   msg.request.RequestId,
+					RequestType: msg.request.RequestType,
+				},
+				Success: true,
+			},
+			msg.client,
+		}
+
+		msg.responseChan <- response
+
+	}
+
+}
+
+func returnSyncStatus(syncChan <-chan SyncRespWithClient) {
+	for response := range syncChan {
+		log.Println("Responding")
+		responsePayload, err := json.Marshal(response.SyncResponse)
+		if err != nil {
+			log.Println("Can't marshall")
+
+		}
+		client := *response.client
+
+		err = client.ws.WriteMessage(websocket.TextMessage, responsePayload)
+		if err != nil {
+			log.Println("Can't send")
+		}
+
+	}
+
+}
+
+func HandleSync(msg []byte, client *Client,
+	outputFolder string,
+	fileChan chan FileDecodeMsg,
+	responseChan chan SyncRespWithClient) error {
+
+	log.Println("Received SYNC request.")
 
 	var request common.SyncRequest
 	err := json.Unmarshal(msg, &request)
@@ -45,24 +88,10 @@ func HandleSync(msg []byte, client *Client, outputFolder string, fileChan chan c
 	}
 
 	request.FileName = filepath.Join(outputFolder, request.FileName)
-	fileChan <- request
-
-	response := common.SyncResponse{
-		BaseResponse: common.BaseResponse{
-			RequestId:   request.RequestId,
-			RequestType: request.RequestType,
-		},
-		Success: true,
-	}
-
-	responsePayload, err := json.Marshal(response)
-	if err != nil {
-		return err
-	}
-
-	err = client.ws.WriteMessage(websocket.TextMessage, responsePayload)
-	if err != nil {
-		return err
+	fileChan <- FileDecodeMsg{
+		request:      request,
+		responseChan: responseChan,
+		client:       client,
 	}
 
 	return nil

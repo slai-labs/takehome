@@ -37,4 +37,5 @@ type SyncResponse struct {
 	BaseResponse
 	Success  bool
 	FileName string
+	ErrorMsg string
 }
