@@ -161,6 +161,13 @@ func (c *Client) Sync(uploads <-chan string) {
 		}
 
 		log.Printf("Received: '%t'", response.Success)
+
+		if response.Success {
+			log.Println("Successfully synced: ", response.FileName)
+		} else {
+			log.Println("Wasn't able to sync: ", response.FileName)
+		}
+
 		if err != nil {
 			log.Fatal("Unable to send request.")
 		}

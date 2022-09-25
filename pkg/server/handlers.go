@@ -48,6 +48,7 @@ func processSyncRequest(fileChan <-chan FileDecodeMsg) {
 			},
 			Success:  success,
 			ErrorMsg: errMsg,
+			FileName: msg.request.FileName,
 		}
 
 		responsePayload, err := json.Marshal(response)
