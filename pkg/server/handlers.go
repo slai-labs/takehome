@@ -10,6 +10,12 @@ import (
 	"slai.io/takehome/pkg/common"
 )
 
+type FileDecodeMsg struct {
+	request      common.SyncRequest
+	responseChan chan SyncRespWithClient
+	client       *Client
+}
+
 func decodeAndSave(fileData string, filePath string) error {
 
 	decoded, err := base64.StdEncoding.DecodeString(fileData)
@@ -21,12 +27,6 @@ func decodeAndSave(fileData string, filePath string) error {
 	err = os.WriteFile(filePath, decoded, 0644)
 
 	return nil
-}
-
-type FileDecodeMsg struct {
-	request      common.SyncRequest
-	responseChan chan SyncRespWithClient
-	client       *Client
 }
 
 func processSyncRequest(fileChan <-chan FileDecodeMsg) {
@@ -47,23 +47,12 @@ func processSyncRequest(fileChan <-chan FileDecodeMsg) {
 			},
 			msg.client,
 		}
-
-		msg.responseChan <- response
-
-	}
-
-}
-
-func returnSyncStatus(syncChan <-chan SyncRespWithClient) {
-	for response := range syncChan {
-		log.Println("Responding")
 		responsePayload, err := json.Marshal(response.SyncResponse)
 		if err != nil {
 			log.Println("Can't marshall")
 
 		}
 		client := *response.client
-
 		err = client.ws.WriteMessage(websocket.TextMessage, responsePayload)
 		if err != nil {
 			log.Println("Can't send")
@@ -75,8 +64,7 @@ func returnSyncStatus(syncChan <-chan SyncRespWithClient) {
 
 func HandleSync(msg []byte, client *Client,
 	outputFolder string,
-	fileChan chan FileDecodeMsg,
-	responseChan chan SyncRespWithClient) error {
+	fileChan chan FileDecodeMsg) error {
 
 	log.Println("Received SYNC request.")
 
@@ -89,9 +77,8 @@ func HandleSync(msg []byte, client *Client,
 
 	request.FileName = filepath.Join(outputFolder, request.FileName)
 	fileChan <- FileDecodeMsg{
-		request:      request,
-		responseChan: responseChan,
-		client:       client,
+		request: request,
+		client:  client,
 	}
 
 	return nil

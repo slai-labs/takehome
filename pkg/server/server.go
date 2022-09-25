@@ -29,8 +29,7 @@ var wg sync.WaitGroup
 
 func handleMessage(w http.ResponseWriter, r *http.Request,
 	outputFolder string,
-	fileChan chan FileDecodeMsg,
-	responseChan chan SyncRespWithClient) {
+	fileChan chan FileDecodeMsg) {
 
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	c, err := upgrader.Upgrade(w, r, nil)
@@ -68,16 +67,15 @@ func handleMessage(w http.ResponseWriter, r *http.Request,
 		case string(common.Echo):
 			go HandleEcho(msg, &client)
 		case string(common.Sync):
-			go HandleSync(msg, &client, outputFolder, fileChan, responseChan)
+			go HandleSync(msg, &client, outputFolder, fileChan)
 
 		}
 	}
 }
 
-func handlerWrapper(outputFolder string, fileChan chan FileDecodeMsg,
-	responseChan chan SyncRespWithClient) http.HandlerFunc {
+func handlerWrapper(outputFolder string, fileChan chan FileDecodeMsg) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		handleMessage(w, r, outputFolder, fileChan, responseChan)
+		handleMessage(w, r, outputFolder, fileChan)
 	}
 }
 
@@ -94,10 +92,8 @@ func StartServer() {
 	flag.Parse()
 
 	fileChan := make(chan FileDecodeMsg, 100)
-	responseChan := make(chan SyncRespWithClient, 100)
 	go processSyncRequest(fileChan)
-	go returnSyncStatus(responseChan)
-	http.HandleFunc("/", handlerWrapper(*folder, fileChan, responseChan))
+	http.HandleFunc("/", handlerWrapper(*folder, fileChan))
 	log.Println("Starting server @", addr)
 	log.Fatal((http.ListenAndServe(addr, nil)))
 }
