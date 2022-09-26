@@ -4,13 +4,11 @@ import (
 	"bufio"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"io"
 	"log"
 	"os"
-	"path/filepath"
-
-	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 	"slai.io/takehome/pkg/common"
 )
 
@@ -140,7 +138,7 @@ func (c *Client) Sync(uploads <-chan string) {
 				RequestType: string(common.Sync),
 			},
 			EncodedFile: openAndEncodeFile(upload),
-			FileName:    filepath.Base(upload),
+			FileName:    upload,
 		}
 		payload, err := json.Marshal(request)
 		if err != nil {

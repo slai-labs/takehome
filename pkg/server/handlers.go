@@ -31,10 +31,16 @@ func decodeAndSave(fileData string, filePath string) error {
 
 func processSyncRequest(fileChan <-chan FileDecodeMsg) {
 	for msg := range fileChan {
-		err := decodeAndSave(msg.request.EncodedFile, msg.request.FileName)
+
+		err := os.MkdirAll(filepath.Dir(msg.request.FileName), os.ModePerm)
+		if err != nil {
+			log.Fatal("Can't create: ", filepath.Dir(msg.request.FileName))
+		}
+
 		errMsg := ""
 		success := true
 
+		err = decodeAndSave(msg.request.EncodedFile, msg.request.FileName)
 		if err != nil {
 			log.Println("Can't process request.")
 			errMsg = err.Error()
@@ -60,7 +66,7 @@ func processSyncRequest(fileChan <-chan FileDecodeMsg) {
 		client := *msg.client
 		err = client.ws.WriteMessage(websocket.TextMessage, responsePayload)
 		if err != nil {
-			log.Fatal("Can't send message. Shutting dowin. IRL this would probably be more graceful.")
+			log.Fatal("Can't send message. Shutting down. IRL this would probably be more graceful.")
 		}
 
 	}
@@ -80,6 +86,7 @@ func HandleSync(msg []byte, client *Client,
 	}
 
 	request.FileName = filepath.Join(outputFolder, request.FileName)
+	log.Println(request.FileName)
 	fileChan <- FileDecodeMsg{
 		request: request,
 		client:  client,

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log"
 	"path/filepath"
+	"regexp"
 	client "slai.io/takehome/pkg/client"
 	"strings"
 	"syscall"
@@ -19,7 +20,6 @@ func main() {
 
 	if *folder == "" {
 		log.Println("-folder required.")
-		log.Println(*folder)
 		syscall.Exit(1)
 	}
 
@@ -38,7 +38,7 @@ func main() {
 
 	uploadChan := make(chan string, 100)
 	go c.Sync(uploadChan)
-
+	folderMatch := regexp.MustCompile(`^tmp/`)
 	go func() {
 		for {
 			select {
@@ -53,7 +53,7 @@ func main() {
 				}
 				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
 					log.Printf("Sending: '%s'", event.Name)
-					uploadChan <- event.Name
+					uploadChan <- folderMatch.ReplaceAllString(event.Name, "")
 				}
 
 			case err, ok := <-watcher.Errors:
