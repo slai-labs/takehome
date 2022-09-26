@@ -2,9 +2,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"io/fs"
 	"log"
+	"os"
 	"path/filepath"
 	"regexp"
 	client "slai.io/takehome/pkg/client"
@@ -47,6 +49,17 @@ func main() {
 					return
 				}
 				log.Println("event:", event)
+				fileInfo, err := os.Stat(event.Name)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+
+				if fileInfo.IsDir() {
+					log.Printf("Ignoring: %s it's a directory", event.Name)
+					continue
+				}
+
 				if *ignoreDotFiles && strings.HasPrefix(filepath.Base(event.Name), ".") {
 					log.Printf("Ignoring: %s", event.Name)
 					continue
