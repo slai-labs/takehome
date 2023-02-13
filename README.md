@@ -1,11 +1,11 @@
-## slai takehome
+## beam takehome
 
 Welcome! The high level goal for this exercise is to build a client/server application in go-lang that synchronizes files from the client to the server (in one direction). A websocket server/client and basic protocol have been included.
 
 ### setup
 
 - install go
-- install air[https://github.com/cosmtrek/air] for hot reloading
+- install [air](https://github.com/cosmtrek/air) for hot reloading
 - to start client: `make client`
 - to start server: `make server`
 
